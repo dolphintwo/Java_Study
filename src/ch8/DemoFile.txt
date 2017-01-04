@@ -1,0 +1,3 @@
+Exception in thread "main" java.lang.Error: Unresolved compilation problems: 
+	The constructor FileReader(String) is undefined
+	The method read(char[]) is undefined for the type FileReader
