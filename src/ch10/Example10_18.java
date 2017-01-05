@@ -12,7 +12,7 @@ class MyWindow7 extends JFrame {
 		this.setLocation(100, 100);
 		JScrollBar xAxis = new JScrollBar(JScrollBar.HORIZONTAL, 50, 1, 0, 100);
 		JScrollBar yAxis = new JScrollBar(JScrollBar.VERTICAL, 50, 1, 0, 100);
-		MyListener1 listener = new MyListener1(xAxis, yAxis, 238, 118);
+		MyListener1 listener = new MyListener1(xAxis, yAxis, 238, 318);
 		JPanel scrolledCanvas = new JPanel();
 		scrolledCanvas.setLayout(new BorderLayout());
 		scrolledCanvas.add(listener, BorderLayout.CENTER);
@@ -57,7 +57,7 @@ class MyListener1 extends JComponent implements MouseListener, MouseMotionListen
 		Dimension size = getSize();
 		g.fillRect(0, 0, size.width, size.height);
 		g.setColor(Color.blue);
-		g.fillRect(x, y, 50, 50);
+		g.fillRect(x, y, 20, 20);
 	}
 
 	public void mouseEntered(MouseEvent e) {
