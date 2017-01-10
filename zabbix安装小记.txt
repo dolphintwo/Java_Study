@@ -1,0 +1,162 @@
+创建mysql用户 zabbix/zabbix
+mysql> insert into mysql.user(Host,User,Password) values("%","zabbix",password("zabbix"));
+授权zabbix用户远程登录权限
+mysql> GRANT ALL PRIVILEGES ON *.* TO 'zabbix'@'%' IDENTIFIED BY 'zabbix' WITH GRANT OPTION;
+刷新系统权限
+mysql> FLUSH PRIVILEGES;
+创建数据库zabbix   默认字符集utf-8
+mysql> CREATE DATABASE IF NOT EXISTS zabbix DEFAULT CHARSET utf8 COLLATE utf8_general_ci;
+
+传入zabbix安装包解压
+[root@localhost ~]# cd /usr/local/src/
+[root@localhost src]# tar -zxvf zabbix-3.2.3.tar.gz 
+导入数据
+[root@localhost mysql]# cd /usr/local/src/zabbix-3.2.3/database/mysql
+[root@localhost mysql]# mysql -uzabbix -pzabbix zabbix < schema.sql 
+[root@localhost mysql]# mysql -uzabbix -pzabbix zabbix < images.sql 
+[root@localhost mysql]# mysql -uzabbix -pzabbix zabbix < data.sql 
+安装yum包
+[root@localhost mysql]# yum -y install libxml2-devel net-snmp-devel libcurl-devel
+添加用户和组
+[root@localhost mysql]# groupadd zabbix
+[root@localhost mysql]# useradd -g zabbix zabbix
+编译安装
+[root@localhost zabbix-3.2.3]# ./configure --prefix=/usr/local/zabbix-server --enable-server --with-mysql --with-net-snmp --with-libcurl --with-libxml2 --enable-java
+出现Now run‘make install’
+[root@localhost zabbix-3.2.3]# make install
+创建日志文件存放地更改权限
+[root@localhost zabbix-3.2.3]# mkdir -p /var/log/zabbix/
+[root@localhost zabbix-3.2.3]# chown -R zabbix:zabbix /var/log/zabbix
+修改zabbix_server设置
+[root@localhost zabbix-3.2.3]# vim /usr/local/zabbix-server/etc/zabbix_server.conf
+> LogFile=/var/log/zabbix/zabbix_server.log
+> DBHost=localhost
+> DBPort=3306
+> DBName=zabbix
+> DBUser=zabbix
+> DBPassword=zabbix
+> ListenIP=127.0.0.1
+配置开机启动
+[root@localhost zabbix-3.2.3]# ln -s /usr/local/zabbix-server/etc/ /etc/zabbix
+[root@localhost zabbix-3.2.3]# ln -s /usr/local/zabbix-server/sbin/* /usr/sbin/
+[root@localhost zabbix-3.2.3]# cp /usr/local/src/zabbix-3.2.3/misc/init.d/fedora/core/zabbix_* /etc/init.d/
+[root@localhost zabbix-3.2.3]# chmod 755 /etc/init.d/zabbix_*
+[root@localhost zabbix-3.2.3]# sed -i "s@BASEDIR=/usr/local@BASEDIR=/usr/local/zabbix-server@g" /etc/init.d/zabbix_server
+[root@localhost zabbix-3.2.3]# chkconfig zabbix_server on
+防火墙配置通过80\3306\10050\10051端口，详细配置方式见文末示例
+启动zabbix
+[root@localhost ~]# service zabbix_server start
+安装httpd和php
+[root@localhost ~]# yum -y install httpd php php-mysql libXpm php-bcmath php-gd php-mbstring php-xml t1lib
+[root@localhost ~]# mkdir -p /var/www/html/zabbix
+创建web目录
+[root@localhost ~]# cd /usr/local/src/zabbix-3.2.3/frontends/php/
+[root@localhost php]# cp -r ./* /var/www/html/zabbix/
+授权
+[root@localhost ~]# chown -R apache.apache /var/www/html/zabbix/
+修改php配置
+[root@localhost ~]# vim /etc/php.ini 
+> date.timezone = Asia/Shanghai
+> post_max_size = 32M
+> max_execution_time = 300
+> max_input_time = 300
+启动php
+[root@localhost ~]# systemctl start httpd.service
+
+
+网页访问http://192.168.3.84/zabbix使用账号admin/zabbix登录
+
+====================================================
+agent安装
+
+传入zabbix安装包解压
+[root@agent86 ~]# cd /usr/local/src/
+[root@agent86 src]# tar -zxvf zabbix-3.2.3.tar.gz 
+添加用户和组
+[root@agent86 zabbix-3.2.3]# groupadd zabbix-agent
+[root@agent86 zabbix-3.2.3]# useradd -g zabbix-agent zabbix-agent
+安装yum包
+[root@agent86 mysql]# yum -y install libxml2-devel net-snmp-devel libcurl-devel
+编译安装
+[root@agent86 zabbix-3.2.3]# ./configure --prefix=/usr/local/zabbix-agent --enable-agent --enable-java
+出现Now run‘make install’
+[root@agent86 zabbix-3.2.3]# make install
+创建日志文件存放地更改权限
+[root@agent86 zabbix-3.2.3]# mkdir -p /var/log/zabbix/
+[root@agent86 zabbix-3.2.3]# chown -R zabbix-agent:zabbix-agent /var/log/zabbix
+修改zabbix_agent设置
+[root@agent86 ~]# vim /usr/local/zabbix-agent/etc/zabbix_agentd.conf
+> LogFile=/var/log/zabbix/zabbix_agentd.log
+> Server=192.168.3.84
+> ServerActive=192.168.3.84
+> Hostname=server84
+> User=zabbix-agent
+防火墙配置通过10050\10051端口，详细配置方式见文末示例
+配置开机启动
+[root@agent86 ~]# ln -s /usr/local/zabbix-agent/etc/ /etc/zabbix
+[root@agent86 ~]# ln -s /usr/local/zabbix-agent/bin/* /usr/bin
+[root@agent86 ~]# ln -s /usr/local/zabbix-agent/sbin/* /usr/sbin/
+[root@agent86 ~]# cp /usr/local/src/zabbix-3.2.3/misc/init.d/fedora/core/zabbix_agentd /etc/init.d/
+[root@agent86 ~]# chmod 755 /etc/init.d/zabbix_agentd 
+[root@agent86 ~]# sed -i "s@BASEDIR=/usr/local@BASEDIR=/usr/local/zabbix-agent@g" /etc/init.d/zabbix_agentd
+[root@agent86 ~]# chkconfig zabbix_agentd on
+[root@agent86 ~]# service zabbix_agentd start 
+
+=============================================================
+tomcat监控
+
+agent：tomcat配置
+[root@agent86 bin]# vim /usr/local/tomcat/server/bin/catalina.sh
+在行 touch "$CATALINA_OUT" 之上，添加参数行
+CATALINA_OPTS="$CATALINA_OPTS -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=12345 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=192.168.3.86" 
+防火墙配置通过12345端口
+
+server：conf配置
+[root@server84 ~]# vim /usr/local/zabbix-server/etc/zabbix_server.conf
+> JavaGateway=127.0.0.1
+> JavaGatewayPort=10052
+> StartJavaPollers=5
+
+
+
+=============================================================
+java环境配置
+[root@agent86 ~]# rpm -ivh jdk-7u71-linux-x64.rpm 
+[root@agent86 ~]# vim /etc/profile
+ 添加如下配置
+export JAVA_HOME=/usr/java/default
+export JAVA_BIN=$JAVA_HOME/bin
+export PATH=$PATH:$JAVA_HOME/bin
+export CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
+export PATH=$JAVA_HOME/bin:$JRE_HOME/bin:$PATH
+[root@agent86 ~]# source /etc/profile
+[root@agent86 ~]# java -version
+
+ 
+=============================================================
+tomcat环境配置
+[root@agent86 ~]# mkdir /usr/local/tomcat
+[root@agent86 ~]# cd /usr/local/tomcat/
+[root@agent86 tomcat]# cp /usr/local/src/apache-tomcat-7.0.73.tar.gz .
+[root@agent86 tomcat]# tar -zxvf apache-tomcat-7.0.73.tar.gz 
+[root@agent86 tomcat]# ln -s apache-tomcat-7.0.73 server
+[root@agent86 tomcat]# cd /usr/local/tomcat/server/bin
+[root@agent86 bin]# ./startup.sh 
+
+
+
+=============================================================
+配置防火墙
+【firewalld】：
+firewall-cmd --zone=public --add-port=10050/tcp --permanent 
+firewall-cmd --reload
+firewall-cmd --zone=public --list-ports
+【iptables】:
+iptables -I INPUT -p tcp --dport 10050 -j ACCEPT
+iptables -I OUTPUT -p tcp --sport 10050 -j ACCEPT
+iptables save
+iptables restart
+iptables -L
+
+
+
