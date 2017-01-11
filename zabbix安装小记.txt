@@ -8,27 +8,27 @@ mysql> FLUSH PRIVILEGES;
 mysql> CREATE DATABASE IF NOT EXISTS zabbix DEFAULT CHARSET utf8 COLLATE utf8_general_ci;
 
 传入zabbix安装包解压
-[root@localhost ~]# cd /usr/local/src/
-[root@localhost src]# tar -zxvf zabbix-3.2.3.tar.gz 
+[root@server84 ~]# cd /usr/local/src/
+[root@server84 src]# tar -zxvf zabbix-3.2.3.tar.gz 
 导入数据
-[root@localhost mysql]# cd /usr/local/src/zabbix-3.2.3/database/mysql
-[root@localhost mysql]# mysql -uzabbix -pzabbix zabbix < schema.sql 
-[root@localhost mysql]# mysql -uzabbix -pzabbix zabbix < images.sql 
-[root@localhost mysql]# mysql -uzabbix -pzabbix zabbix < data.sql 
+[root@server84 mysql]# cd /usr/local/src/zabbix-3.2.3/database/mysql
+[root@server84 mysql]# mysql -uzabbix -pzabbix zabbix < schema.sql 
+[root@server84 mysql]# mysql -uzabbix -pzabbix zabbix < images.sql 
+[root@server84 mysql]# mysql -uzabbix -pzabbix zabbix < data.sql 
 安装yum包
-[root@localhost mysql]# yum -y install libxml2-devel net-snmp-devel libcurl-devel
+[root@server84 mysql]# yum -y install libxml2-devel net-snmp-devel libcurl-devel
 添加用户和组
-[root@localhost mysql]# groupadd zabbix
-[root@localhost mysql]# useradd -g zabbix zabbix
+[root@server84 mysql]# groupadd zabbix
+[root@server84 mysql]# useradd -g zabbix zabbix
 编译安装
-[root@localhost zabbix-3.2.3]# ./configure --prefix=/usr/local/zabbix-server --enable-server --with-mysql --with-net-snmp --with-libcurl --with-libxml2 --enable-java
+[root@server84 zabbix-3.2.3]# ./configure --prefix=/usr/local/zabbix-server --enable-server --enable-agent --with-mysql --with-net-snmp --with-libcurl --with-libxml2 --enable-java
 出现Now run‘make install’
-[root@localhost zabbix-3.2.3]# make install
+[root@server84 zabbix-3.2.3]# make install
 创建日志文件存放地更改权限
-[root@localhost zabbix-3.2.3]# mkdir -p /var/log/zabbix/
-[root@localhost zabbix-3.2.3]# chown -R zabbix:zabbix /var/log/zabbix
+[root@server84 zabbix-3.2.3]# mkdir -p /var/log/zabbix/
+[root@server84 zabbix-3.2.3]# chown -R zabbix:zabbix /var/log/zabbix
 修改zabbix_server设置
-[root@localhost zabbix-3.2.3]# vim /usr/local/zabbix-server/etc/zabbix_server.conf
+[root@server84 zabbix-3.2.3]# vim /usr/local/zabbix-server/etc/zabbix_server.conf
 > LogFile=/var/log/zabbix/zabbix_server.log
 > DBHost=localhost
 > DBPort=3306
@@ -37,31 +37,31 @@ mysql> CREATE DATABASE IF NOT EXISTS zabbix DEFAULT CHARSET utf8 COLLATE utf8_ge
 > DBPassword=zabbix
 > ListenIP=127.0.0.1
 配置开机启动
-[root@localhost zabbix-3.2.3]# ln -s /usr/local/zabbix-server/etc/ /etc/zabbix
-[root@localhost zabbix-3.2.3]# ln -s /usr/local/zabbix-server/sbin/* /usr/sbin/
-[root@localhost zabbix-3.2.3]# cp /usr/local/src/zabbix-3.2.3/misc/init.d/fedora/core/zabbix_* /etc/init.d/
-[root@localhost zabbix-3.2.3]# chmod 755 /etc/init.d/zabbix_*
-[root@localhost zabbix-3.2.3]# sed -i "s@BASEDIR=/usr/local@BASEDIR=/usr/local/zabbix-server@g" /etc/init.d/zabbix_server
-[root@localhost zabbix-3.2.3]# chkconfig zabbix_server on
+[root@server84 zabbix-3.2.3]# ln -s /usr/local/zabbix-server/etc/ /etc/zabbix
+[root@server84 zabbix-3.2.3]# ln -s /usr/local/zabbix-server/sbin/* /usr/sbin/
+[root@server84 zabbix-3.2.3]# cp /usr/local/src/zabbix-3.2.3/misc/init.d/fedora/core/zabbix_* /etc/init.d/
+[root@server84 zabbix-3.2.3]# chmod 755 /etc/init.d/zabbix_*
+[root@server84 zabbix-3.2.3]# sed -i "s@BASEDIR=/usr/local@BASEDIR=/usr/local/zabbix-server@g" /etc/init.d/zabbix_server
+[root@server84 zabbix-3.2.3]# chkconfig zabbix_server on
 防火墙配置通过80\3306\10050\10051端口，详细配置方式见文末示例
 启动zabbix
-[root@localhost ~]# service zabbix_server start
+[root@server84 ~]# service zabbix_server start
 安装httpd和php
-[root@localhost ~]# yum -y install httpd php php-mysql libXpm php-bcmath php-gd php-mbstring php-xml t1lib
-[root@localhost ~]# mkdir -p /var/www/html/zabbix
+[root@server84 ~]# yum -y install httpd php php-mysql libXpm php-bcmath php-gd php-mbstring php-xml t1lib
+[root@server84 ~]# mkdir -p /var/www/html/zabbix
 创建web目录
-[root@localhost ~]# cd /usr/local/src/zabbix-3.2.3/frontends/php/
-[root@localhost php]# cp -r ./* /var/www/html/zabbix/
+[root@server84 ~]# cd /usr/local/src/zabbix-3.2.3/frontends/php/
+[root@server84 php]# cp -r ./* /var/www/html/zabbix/
 授权
-[root@localhost ~]# chown -R apache.apache /var/www/html/zabbix/
+[root@server84 ~]# chown -R apache.apache /var/www/html/zabbix/
 修改php配置
-[root@localhost ~]# vim /etc/php.ini 
+[root@server84 ~]# vim /etc/php.ini 
 > date.timezone = Asia/Shanghai
 > post_max_size = 32M
 > max_execution_time = 300
 > max_input_time = 300
 启动php
-[root@localhost ~]# systemctl start httpd.service
+[root@server84 ~]# systemctl start httpd.service
 
 
 网页访问http://192.168.3.84/zabbix使用账号admin/zabbix登录
@@ -112,6 +112,9 @@ CATALINA_OPTS="$CATALINA_OPTS -Dcom.sun.management.jmxremote -Dcom.sun.managemen
 防火墙配置通过12345端口
 
 server：conf配置
+安装java_gateway
+[root@server84 ~]# rpm -ivh /usr/local/src/zabbix-java-gateway-3.2.3-1.el7.x86_64.rpm 
+配置文件: /etc/zabbix/zabbix_java_gateway.conf
 [root@server84 ~]# vim /usr/local/zabbix-server/etc/zabbix_server.conf
 > JavaGateway=127.0.0.1
 > JavaGatewayPort=10052
