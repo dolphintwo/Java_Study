@@ -1,5 +1,34 @@
+mysql安装
+卸载mariadb
+[root@whole87 ~]# rpm -qa|grep mariadb
+mariadb-libs-5.5.41-2.el7_0.x86_64
+[root@whole87 ~]# rpm -e --nodeps mariadb-libs-5.5.41-2.el7_0.x86_64
+安装mysql
+[root@whole87 ~]# cd /usr/local/src/
+[root@whole87 src]# mkdir  mysql-5.7.17-1.el7.x86_64.rpm-bundle
+[root@whole87 src]# tar -xvf mysql-5.7.17-1.el7.x86_64.rpm-bundle.tar  -C ./mysql-5.7.17-1.el7.x86_64.rpm-bundle
+[root@whole87 src]# cd  mysql-5.7.17-1.el7.x86_64.rpm-bundle
+[root@whole87 mysql-5.7.17-1.el7.x86_64.rpm-bundle]# yum install mysql-community-common-5.7.17-1.el7.x86_64.rpm 
+[root@whole87 mysql-5.7.17-1.el7.x86_64.rpm-bundle]# yum install mysql-community-libs-*
+[root@whole87 mysql-5.7.17-1.el7.x86_64.rpm-bundle]# yum install mysql-community-client-5.7.17-1.el7.x86_64.rpm 
+[root@whole87 mysql-5.7.17-1.el7.x86_64.rpm-bundle]# yum install mysql-community-server-5.7.17-1.el7.x86_64.rpm 
+[root@whole87 mysql-5.7.17-1.el7.x86_64.rpm-bundle]# yum install mysql-community-devel-5.7.17-1.el7.x86_64.rpm 
+启动mysql
+[root@whole87 ~]# systemctl start mysqld.service 
+获取初始安装临时密码
+[root@whole87 ~]# grep 'temporary password' /var/log/mysqld.log 
+[root@whole87 ~]# mysql -uroot -p
+修改密码失败，密码安全策略不通过
+mysql> ALTER USER 'root'@'localhost' IDENTIFIED BY '888888';
+ERROR 1819 (HY000): Your password does not satisfy the current policy requirements
+[root@whole87 ~]# vim /etc/my.cnf
+> validate_password=off
+[root@whole87 ~]# systemctl restart mysqld.service 
+mysql> GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '888888' WITH GRANT OPTION;
+
 创建mysql用户 zabbix/zabbix
-mysql> insert into mysql.user(Host,User,Password) values("%","zabbix",password("zabbix"));
+mysql> use mysql
+mysql> create user zabbix identified by 'zabbix';
 授权zabbix用户远程登录权限
 mysql> GRANT ALL PRIVILEGES ON *.* TO 'zabbix'@'%' IDENTIFIED BY 'zabbix' WITH GRANT OPTION;
 刷新系统权限
@@ -16,7 +45,7 @@ mysql> CREATE DATABASE IF NOT EXISTS zabbix DEFAULT CHARSET utf8 COLLATE utf8_ge
 [root@server84 mysql]# mysql -uzabbix -pzabbix zabbix < images.sql 
 [root@server84 mysql]# mysql -uzabbix -pzabbix zabbix < data.sql 
 安装yum包
-[root@server84 mysql]# yum -y install libxml2-devel net-snmp-devel libcurl-devel
+[root@server84 mysql]# yum -y install libxml2-devel net-snmp-devel libcurl-devel gcc
 添加用户和组
 [root@server84 mysql]# groupadd zabbix
 [root@server84 mysql]# useradd -g zabbix zabbix
@@ -44,6 +73,9 @@ mysql> CREATE DATABASE IF NOT EXISTS zabbix DEFAULT CHARSET utf8 COLLATE utf8_ge
 [root@server84 zabbix-3.2.3]# sed -i "s@BASEDIR=/usr/local@BASEDIR=/usr/local/zabbix-server@g" /etc/init.d/zabbix_server
 [root@server84 zabbix-3.2.3]# chkconfig zabbix_server on
 防火墙配置通过80\3306\10050\10051端口，详细配置方式见文末示例
+关闭selinux
+[root@server84 ~]# vim /etc/selinux/config
+> SELINUX=disabled
 启动zabbix
 [root@server84 ~]# service zabbix_server start
 安装httpd和php
@@ -108,12 +140,23 @@ tomcat监控
 agent：tomcat配置
 [root@agent86 bin]# vim /usr/local/tomcat/server/bin/catalina.sh
 在行 touch "$CATALINA_OUT" 之上，添加参数行
-CATALINA_OPTS="$CATALINA_OPTS -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=12345 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=192.168.3.86" 
-防火墙配置通过12345端口
+CATALINA_OPTS="$CATALINA_OPTS -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=192.168.3.86" 
+[root@agent86 bin]# cd /usr/local/tomcat/server/lib/
+[root@agent86 lib]# cp /usr/local/src/catalina-jmx-remote.jar .
+添加监听器注册端口和服务端口
+<Listener className="org.apache.catalina.mbeans.JmxRemoteLifecycleListener" 
+	rmiRegistryPortPlatform="12345" rmiServerPortPlatform="12346" />
+防火墙配置通过12345/12346端口
+重启tomcat和zabbix_agentd
+Jmx测试
+[root@server84 src]# java -jar cmdline-jmxclient-0.10.3.jar - 192.168.3.87:12345 | grep 8080
+[root@server84 src]# java -jar cmdline-jmxclient-0.10.3.jar - 192.168.3.87:12345 'Catalina:name="http-bio-8080",type=GlobalRequestProcessor' bytesReceived 
 
 server：conf配置
 安装java_gateway
 [root@server84 ~]# rpm -ivh /usr/local/src/zabbix-java-gateway-3.2.3-1.el7.x86_64.rpm 
+启动zabbix_java
+[root@server84 ~]# sh /usr/local/zabbix/sbin/zabbix_java/startup.sh 
 配置文件: /etc/zabbix/zabbix_java_gateway.conf
 [root@server84 ~]# vim /usr/local/zabbix-server/etc/zabbix_server.conf
 > JavaGateway=127.0.0.1
@@ -160,6 +203,4 @@ iptables -I OUTPUT -p tcp --sport 10050 -j ACCEPT
 iptables save
 iptables restart
 iptables -L
-
-
 
