@@ -1,3 +1,4 @@
+﻿小结
 mysql安装
 卸载mariadb
 [root@whole87 ~]# rpm -qa|grep mariadb
